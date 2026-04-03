@@ -1,31 +1,50 @@
-import React, { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase';
-import { ImagePlus, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { useAuth } from '../AuthContext';
+import { ImagePlus, Mail, Lock, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, firebaseUser, loading: authLoading, isMissingInDatabase } = useAuth();
+
+  useEffect(() => {
+    if (firebaseUser && user && !isMissingInDatabase) {
+      navigate('/dashboard');
+    }
+  }, [firebaseUser, user, isMissingInDatabase, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLocalLoading(true);
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/dashboard');
+      // O useEffect cuidará do redirecionamento se o usuário for encontrado no Firestore
     } catch (err: any) {
       console.error(err);
       setError('E-mail ou senha incorretos. Verifique seus dados e tente novamente.');
-    } finally {
-      setLoading(false);
+      setLocalLoading(false);
     }
   };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
@@ -47,64 +66,94 @@ export default function Login() {
         </div>
 
         <div className="bg-card-dark border border-border-dark rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
-          <form onSubmit={handleLogin} className="space-y-6">
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg flex items-center gap-3 text-sm">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                {error}
+          {isMissingInDatabase && firebaseUser ? (
+            <div className="space-y-6 text-center">
+              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 px-4 py-4 rounded-xl flex flex-col items-center gap-3 text-sm">
+                <AlertCircle className="w-8 h-8" />
+                <p className="font-medium">Conta em Aprovação</p>
+                <p className="text-gray-400">Sua conta foi criada no sistema de autenticação, mas ainda não foi ativada no banco de dados pelo administrador.</p>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300 ml-1">E-mail</label>
-              <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-primary transition-colors" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-black/50 border border-border-dark rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
-                  placeholder="seu@email.com"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between ml-1">
-                <label className="text-sm font-medium text-gray-300">Senha</label>
-                <button type="button" className="text-xs text-primary hover:underline">Esqueceu a senha?</button>
-              </div>
-              <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-primary transition-colors" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-black/50 border border-border-dark rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
-                  placeholder="••••••••"
-                />
+              <p className="text-sm text-gray-500">Por favor, entre em contato via WhatsApp para liberar seu acesso.</p>
+              <div className="flex flex-col gap-3">
+                <a 
+                  href="https://wa.me/seu-numero" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  Falar no WhatsApp
+                </a>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full bg-white/5 hover:bg-white/10 text-gray-400 py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sair da Conta
+                </button>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-6">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg flex items-center gap-3 text-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  {error}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entrar'}
-            </button>
-          </form>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 ml-1">E-mail</label>
+                <div className="relative group">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-black/50 border border-border-dark rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                    placeholder="seu@email.com"
+                  />
+                </div>
+              </div>
 
-          <div className="mt-8 pt-6 border-t border-border-dark text-center">
-            <p className="text-sm text-gray-500">
-              Não tem uma conta?{' '}
-              <a href="https://wa.me/seu-numero" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold hover:underline">
-                Chame no WhatsApp
-              </a>
-            </p>
-          </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-sm font-medium text-gray-300">Senha</label>
+                  <button type="button" className="text-xs text-primary hover:underline">Esqueceu a senha?</button>
+                </div>
+                <div className="relative group">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-black/50 border border-border-dark rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={localLoading}
+                className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              >
+                {localLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entrar'}
+              </button>
+            </form>
+          )}
+
+          {!isMissingInDatabase && (
+            <div className="mt-8 pt-6 border-t border-border-dark text-center">
+              <p className="text-sm text-gray-500">
+                Não tem uma conta?{' '}
+                <a href="https://wa.me/seu-numero" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold hover:underline">
+                  Chame no WhatsApp
+                </a>
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
