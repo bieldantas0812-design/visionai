@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Usuário do sistema",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "planId": { "type": "string" },
+        "credits": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "suspended", "blocked"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role", "planId", "credits", "status", "createdAt"]
+    },
+    "Plan": {
+      "title": "Plan",
+      "description": "Plano de assinatura",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "initialCredits": { "type": "number" },
+        "active": { "type": "boolean" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "price", "initialCredits", "active", "order"]
+    },
+    "Generation": {
+      "title": "Generation",
+      "description": "Imagem gerada por IA",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "prompt": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "creditsConsumed": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "prompt", "imageUrl", "creditsConsumed", "createdAt"]
+    },
+    "ManualPayment": {
+      "title": "ManualPayment",
+      "description": "Registro de pagamento manual",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "planId": { "type": "string" },
+        "amount": { "type": "number" },
+        "creditsReleased": { "type": "number" },
+        "method": { "type": "string" },
+        "status": { "type": "string" },
+        "observations": { "type": "string" },
+        "confirmedByAdmin": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "amount", "creditsReleased", "method", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Dados do usuário"
+    },
+    "/plans/{planId}": {
+      "schema": "Plan",
+      "description": "Planos disponíveis"
+    },
+    "/generations/{genId}": {
+      "schema": "Generation",
+      "description": "Histórico de gerações"
+    },
+    "/manual_payments/{payId}": {
+      "schema": "ManualPayment",
+      "description": "Histórico de pagamentos"
+    }
+  }
+}

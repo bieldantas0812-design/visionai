@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Fields: name, email, role, planId, credits, status, createdAt
+    //
+    // Collection: plans
+    // Fields: name, description, price, initialCredits, active, order, createdAt
+    //
+    // Collection: generations
+    // Fields: userId, prompt, imageUrl, creditsConsumed, createdAt
+    //
+    // Collection: manual_payments
+    // Fields: userId, planId, amount, creditsReleased, method, status, observations, confirmedByAdmin, createdAt
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.token.email == 'bieldantas0812@gmail.com');
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'planId', 'credits', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.role in ['user', 'admin'] &&
+             data.credits is number && data.status in ['active', 'suspended', 'blocked'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Usuários podem ler seus próprios dados. Admins podem ler tudo.
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Apenas admins podem criar ou atualizar usuários (visto que é manual).
+      // Exceção: Usuário pode atualizar seu próprio perfil se não mudar campos sensíveis (role, credits, status, planId).
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isOwner(userId) && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']) &&
+                      isValidUser(request.resource.data));
+      allow delete: if isAdmin();
+    }
+
+    match /plans/{planId} {
+      // Todos autenticados podem ver os planos.
+      allow read: if isAuthenticated();
+      // Apenas admins podem gerenciar planos.
+      allow write: if isAdmin();
+    }
+
+    match /generations/{genId} {
+      // Usuários podem ver suas próprias gerações. Admins podem ver tudo.
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Criação de geração:
+      // 1. Deve ser o dono.
+      // 2. Deve ter créditos > 0.
+      // 3. Status deve ser 'active'.
+      // 4. Admins podem criar (para testes ou suporte).
+      allow create: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.credits > 0 &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active'
+      );
+      
+      // Gerações são imutáveis após criadas.
+      allow update, delete: if isAdmin();
+    }
+
+    match /manual_payments/{payId} {
+      // Usuários podem ver seus próprios pagamentos. Admins podem ver tudo.
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Apenas admins podem registrar pagamentos.
+      allow write: if isAdmin();
+    }
+  }
+}
