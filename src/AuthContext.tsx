@@ -42,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (docSnap.exists()) {
         setUser({ id: docSnap.id, ...docSnap.data() } as User);
       } else {
+        // Se o usuário existe no Auth mas não no Firestore, ele ainda é nulo para o app
+        console.warn("Usuário autenticado mas não encontrado no banco de dados (Firestore).");
         setUser(null);
       }
       setLoading(false);
