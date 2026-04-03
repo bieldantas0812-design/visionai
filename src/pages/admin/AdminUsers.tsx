@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../../firebase';
-import { collection, query, getDocs, doc, updateDoc, deleteDoc, addDoc, orderBy, where } from 'firebase/firestore';
+import { db, createSecondaryApp } from '../../firebase';
+import { collection, query, getDocs, doc, updateDoc, deleteDoc, setDoc, orderBy, where } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, getAuth, signOut, deleteUser } from 'firebase/auth';
 import { User, Plan } from '../../types';
 import { formatDate } from '../../lib/utils';
-import { Users, Search, Plus, Edit2, Trash2, ShieldCheck, ShieldAlert, ShieldOff, MoreVertical, X, Loader2, CreditCard } from 'lucide-react';
+import { Users, Search, Plus, Edit2, Trash2, ShieldCheck, ShieldAlert, ShieldOff, MoreVertical, X, Loader2, CreditCard, Lock, Mail, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { toast } from 'sonner';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -20,6 +22,7 @@ export default function AdminUsers() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '', // New field
     role: 'user' as const,
     planId: '',
     credits: 0,
@@ -36,6 +39,7 @@ export default function AdminUsers() {
         setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() } as Plan)));
       } catch (error) {
         console.error("Erro ao buscar usuários:", error);
+        toast.error("Erro ao carregar dados.");
       } finally {
         setLoading(false);
       }
@@ -46,23 +50,46 @@ export default function AdminUsers() {
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    
+    let secondaryApp = null;
     try {
       if (editingUser) {
-        await updateDoc(doc(db, 'users', editingUser.id), formData);
-        setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u));
+        const { password, ...updateData } = formData;
+        await updateDoc(doc(db, 'users', editingUser.id), updateData);
+        setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...updateData } : u));
+        toast.success("Usuário atualizado com sucesso!");
       } else {
-        // For manual creation, we'd normally use Firebase Admin or a cloud function to create the Auth user.
-        // In this demo, we'll just add to Firestore. In a real app, you'd need to create the Auth account too.
-        const newDoc = await addDoc(collection(db, 'users'), {
-          ...formData,
+        if (!formData.password || formData.password.length < 6) {
+          toast.error("A senha deve ter pelo menos 6 caracteres.");
+          setIsSaving(false);
+          return;
+        }
+
+        // Criar usuário no Firebase Auth sem deslogar o admin
+        secondaryApp = createSecondaryApp();
+        const secondaryAuth = getAuth(secondaryApp);
+        
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+        const uid = userCredential.user.uid;
+
+        // Criar documento no Firestore com o mesmo UID
+        const { password, ...userData } = formData;
+        await setDoc(doc(db, 'users', uid), {
+          ...userData,
           createdAt: new Date().toISOString(),
         });
-        setUsers([{ id: newDoc.id, ...formData, createdAt: new Date().toISOString() } as User, ...users]);
+
+        // Deslogar do app secundário para limpar a sessão
+        await signOut(secondaryAuth);
+
+        setUsers([{ id: uid, ...userData, createdAt: new Date().toISOString() } as User, ...users]);
+        toast.success("Usuário criado com sucesso!");
       }
       setIsModalOpen(false);
       setEditingUser(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar usuário:", error);
+      toast.error(error.message || "Erro ao salvar usuário.");
     } finally {
       setIsSaving(false);
     }
@@ -260,6 +287,19 @@ export default function AdminUsers() {
                       className="w-full bg-black/50 border border-border-dark rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-red-600/50"
                     />
                   </div>
+                  {!editingUser && (
+                    <div className="space-y-1 col-span-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Senha Inicial</label>
+                      <input 
+                        type="password" 
+                        required={!editingUser}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="w-full bg-black/50 border border-border-dark rounded-xl py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Plano</label>
                     <select 

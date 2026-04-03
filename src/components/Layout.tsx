@@ -11,10 +11,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const { user } = useAuth();
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: ImagePlus, label: 'Gerar Imagem', path: '/gerar' },
-    { icon: Images, label: 'Minhas Imagens', path: '/minhas-imagens' },
-    { icon: CreditCard, label: 'Meu Plano', path: '/meu-plano' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/app/dashboard' },
+    { icon: ImagePlus, label: 'Gerar Imagem', path: '/app/gerar' },
+    { icon: Images, label: 'Minhas Imagens', path: '/app/minhas-imagens' },
+    { icon: CreditCard, label: 'Meu Plano', path: '/app/meu-plano' },
   ];
 
   return (
@@ -43,7 +43,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       >
         <div className="flex flex-col h-full">
           <div className="p-6">
-            <Link to="/dashboard" className="flex items-center gap-2">
+            <Link to="/app/dashboard" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <ImagePlus className="text-white w-5 h-5" />
               </div>

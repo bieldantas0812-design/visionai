@@ -15,7 +15,7 @@ async function startServer() {
 
   // API Route for Image Generation (Server-side)
   app.post("/api/generate-image", async (req, res) => {
-    const { prompt } = req.body;
+    const { prompt, aspectRatio = "1:1" } = req.body;
     
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "Gemini API Key não configurada no servidor." });
@@ -26,7 +26,7 @@ async function startServer() {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [{ text: prompt }] },
-        config: { imageConfig: { aspectRatio: "1:1" } },
+        config: { imageConfig: { aspectRatio } },
       });
 
       for (const part of response.candidates?.[0]?.content?.parts || []) {

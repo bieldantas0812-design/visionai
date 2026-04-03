@@ -5,14 +5,33 @@ import { db } from '../firebase';
 import { collection, addDoc, doc, updateDoc, increment } from 'firebase/firestore';
 import { ImagePlus, Loader2, Sparkles, AlertCircle, Download, Maximize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 export default function Generate() {
   const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
+  const [style, setStyle] = useState('none');
+  const [aspectRatio, setAspectRatio] = useState('1:1');
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const styles = [
+    { id: 'none', name: 'Nenhum', icon: '✨' },
+    { id: 'photorealistic', name: 'Fotorrealista', icon: '📸' },
+    { id: 'anime', name: 'Anime', icon: '🎌' },
+    { id: 'digital-art', name: 'Arte Digital', icon: '🎨' },
+    { id: 'cyberpunk', name: 'Cyberpunk', icon: '🏙️' },
+    { id: 'oil-painting', name: 'Pintura a Óleo', icon: '🖼️' },
+  ];
+
+  const aspectRatios = [
+    { id: '1:1', name: 'Quadrado (1:1)' },
+    { id: '16:9', name: 'Paisagem (16:9)' },
+    { id: '9:16', name: 'Retrato (9:16)' },
+  ];
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,12 +53,15 @@ export default function Generate() {
     setResultImage(null);
 
     try {
-      const imageUrl = await generateImage(prompt);
+      const finalPrompt = style !== 'none' ? `${prompt}, estilo ${style}` : prompt;
+      const imageUrl = await generateImage(finalPrompt, aspectRatio);
       
       // Save to database
       await addDoc(collection(db, 'generations'), {
         userId: user.id,
-        prompt: prompt,
+        prompt: finalPrompt,
+        style,
+        aspectRatio,
         imageUrl: imageUrl,
         creditsConsumed: 1,
         createdAt: new Date().toISOString(),
@@ -51,9 +73,11 @@ export default function Generate() {
       });
 
       setResultImage(imageUrl);
+      toast.success("Imagem gerada com sucesso!");
     } catch (err: any) {
       console.error(err);
       setError('Ocorreu um erro ao gerar sua imagem. Tente novamente mais tarde.');
+      toast.error("Erro ao gerar imagem.");
     } finally {
       setIsGenerating(false);
     }
@@ -80,9 +104,52 @@ export default function Generate() {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Ex: Um astronauta andando em um cavalo neon em Marte, estilo cyberpunk, 4k, altamente detalhado..."
-                  className="w-full h-40 bg-black/50 border border-border-dark rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all resize-none"
+                  className="w-full h-32 bg-black/50 border border-border-dark rounded-xl p-4 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all resize-none"
                   disabled={isGenerating}
                 />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Estilo Visual</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {styles.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setStyle(s.id)}
+                      className={cn(
+                        "p-2 rounded-xl border text-xs font-medium transition-all flex flex-col items-center gap-1",
+                        style === s.id 
+                          ? "bg-primary/10 border-primary text-white shadow-lg shadow-primary/10" 
+                          : "bg-white/5 border-border-dark text-gray-400 hover:bg-white/10"
+                      )}
+                    >
+                      <span className="text-lg">{s.icon}</span>
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Proporção (Aspect Ratio)</label>
+                <div className="flex gap-2">
+                  {aspectRatios.map((ar) => (
+                    <button
+                      key={ar.id}
+                      type="button"
+                      onClick={() => setAspectRatio(ar.id)}
+                      className={cn(
+                        "flex-1 p-2 rounded-xl border text-xs font-medium transition-all",
+                        aspectRatio === ar.id 
+                          ? "bg-primary/10 border-primary text-white" 
+                          : "bg-white/5 border-border-dark text-gray-400 hover:bg-white/10"
+                      )}
+                    >
+                      {ar.name}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {error && (

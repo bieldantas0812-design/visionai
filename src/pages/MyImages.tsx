@@ -6,6 +6,7 @@ import { Generation } from '../types';
 import { formatDate } from '../lib/utils';
 import { Images, Download, Maximize2, X, Search, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Link } from 'react-router-dom';
 
 export default function MyImages() {
   const { user } = useAuth();
@@ -116,9 +117,9 @@ export default function MyImages() {
             {searchTerm ? 'Tente buscar por outros termos.' : 'Crie sua primeira imagem agora mesmo!'}
           </p>
           {!searchTerm && (
-            <a href="/gerar" className="btn-primary inline-flex items-center gap-2">
+            <Link to="/app/gerar" className="btn-primary inline-flex items-center gap-2">
               Começar a criar
-            </a>
+            </Link>
           )}
         </div>
       )}
@@ -161,6 +162,17 @@ export default function MyImages() {
                       </p>
                     </div>
                     
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Estilo</label>
+                        <p className="text-sm text-white capitalize">{selectedImage.style || 'Nenhum'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Proporção</label>
+                        <p className="text-sm text-white">{selectedImage.aspectRatio || '1:1'}</p>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Data de Geração</label>
                       <p className="text-sm text-white flex items-center gap-2">
